@@ -17,8 +17,6 @@ import {
   View,
 } from 'react-native';
 
-import RNCallKeep from 'react-native-callkeep';
-
 import {
   Colors,
   DebugInstructions,
@@ -57,27 +55,27 @@ function Section({children, title}: SectionProps): React.JSX.Element {
   );
 }
 
-RNCallKeep.setup({
-  ios: {
-    appName: 'Fisher',
-  },
-  android: {
-    alertTitle: 'Permissions required',
-    alertDescription: 'This application needs to access your phone accounts',
-    cancelButton: 'Cancel',
-    okButton: 'ok',
-    additionalPermissions: [
-      PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS,
-      PermissionsAndroid.PERMISSIONS.CALL_PHONE,
-    ],
-    foregroundService: {
-      channelId: 'com.dku.fisher',
-      channelName: 'Foreground service for fisher',
-      notificationTitle: 'Fisher is running on background',
-      notificationIcon: 'Path to the resource icon of the notification',
-    },
-  },
-}).then(accepted => {});
+// RNCallKeep.setup({
+//   ios: {
+//     appName: 'Fisher',
+//   },
+//   android: {
+//     alertTitle: 'Permissions required',
+//     alertDescription: 'This application needs to access your phone accounts',
+//     cancelButton: 'Cancel',
+//     okButton: 'ok',
+//     additionalPermissions: [
+//       PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS,
+//       PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+//     ],
+//     foregroundService: {
+//       channelId: 'com.dku.fisher',
+//       channelName: 'Foreground service for fisher',
+//       notificationTitle: 'Fisher is running on background',
+//       notificationIcon: 'Path to the resource icon of the notification',
+//     },
+//   },
+// }).then(accepted => {});
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
