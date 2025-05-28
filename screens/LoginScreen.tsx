@@ -9,85 +9,120 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../App';
 
-const LoginScreen: React.FC = () => (
-  <SafeAreaView style={styles.container}>
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Image
-        source={require('../assets/fisher.png')}
-        style={styles.image}
-      />
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-      <Text style={styles.title}>AI 통화 지킴이, Fisher</Text>
+type LoginNavProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email Address"
-        placeholderTextColor="#999"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#999"
-        secureTextEntry
-      />
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<LoginNavProp>();
 
-      <TouchableOpacity>
-        <Text style={styles.linkText}>비밀번호를 잊으셨나요?</Text>
-      </TouchableOpacity>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* 상단 이미지: 가로 전체 꽉 채우기 */}
+        <Image
+          source={require('../assets/fisher.png')}
+          style={[styles.headerImage, { width: SCREEN_WIDTH }]}
+        />
 
-      <TouchableOpacity style={styles.loginButton}>
-        <Text style={styles.loginButtonText}>로그인</Text>
-      </TouchableOpacity>
+        <View style={styles.body}>
+          {/* 좌측 정렬된 타이틀 */}
+          <Text style={styles.title}>AI 통화 지킴이, Fisher</Text>
 
-      <View style={styles.signUpRow}>
-        <Text style={styles.signUpText}>회원이 아니신가요? </Text>
-        <TouchableOpacity>
-          <Text style={styles.signUpLink}>회원가입</Text>
-        </TouchableOpacity>
-      </View>
+          {/* 입력 필드 */}
+          <TextInput
+            style={styles.input}
+            placeholder="Email Address"
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+          />
 
-      <Text style={styles.orText}>Or continue with</Text>
+          {/* 좌측 정렬된 비밀번호 찾기 */}
+          <TouchableOpacity style={styles.forgot}>
+            <Text style={styles.forgotText}>비밀번호를 잊으셨나요?</Text>
+          </TouchableOpacity>
 
-      <View style={styles.socialRow}>
-        <TouchableOpacity style={styles.socialButton}>
-          <Icon name="google" size={24} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}>
-          <Icon name="apple" size={24} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}>
-          <Icon name="facebook" size={24} />
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  </SafeAreaView>
-);
+          {/* 로그인 → Check 화면으로 이동 */}
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => navigation.navigate('Check')}
+          >
+            <Text style={styles.loginButtonText}>로그인</Text>
+          </TouchableOpacity>
+
+          {/* 회원가입 이동 */}
+          <View style={styles.signUpRow}>
+            <Text style={styles.signUpText}>회원이 아니신가요? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signUpLink}>회원가입</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 구분선 */}
+          <View style={styles.separator} />
+
+          {/* 소셜 로그인 구분선 텍스트 */}
+          <Text style={styles.orText}>Or continue with</Text>
+
+          {/* 소셜 버튼 */}
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              style={[styles.socialButton, { backgroundColor: '#DB4437' }]}
+            >
+              <Icon name="google" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.socialButton, { backgroundColor: '#000' }]}
+            >
+              <Icon name="apple" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.socialButton, { backgroundColor: '#4267B2' }]}
+            >
+              <Icon name="facebook" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
 
 const PRIMARY_BLUE = '#007AFF';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
+  scroll: { alignItems: 'center' },
+  headerImage: {
+    height: 300,
+    resizeMode: 'cover',
+    marginBottom: 20,
   },
-  image: {
+  body: {
     width: '100%',
-    height: 200,
-    resizeMode: 'contain',
+    paddingHorizontal: 20,
+    alignItems: 'flex-start',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginVertical: 20,
+    marginBottom: 20,
   },
   input: {
     width: '100%',
@@ -98,10 +133,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginTop: 10,
   },
-  linkText: {
-    alignSelf: 'flex-end',
-    color: PRIMARY_BLUE,
+  forgot: {
     marginTop: 10,
+  },
+  forgotText: {
+    color: PRIMARY_BLUE,
   },
   loginButton: {
     width: '100%',
@@ -128,18 +164,26 @@ const styles = StyleSheet.create({
     color: PRIMARY_BLUE,
     fontWeight: '600',
   },
-  orText: {
-    color: '#666',
+  separator: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#eee',
     marginVertical: 20,
+  },
+  orText: {
+    alignSelf: 'center',
+    color: '#666',
+    marginBottom: 20,
   },
   socialRow: {
     flexDirection: 'row',
+    alignSelf: 'center',
+    marginBottom: 40,
   },
   socialButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#eee',
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 8,
