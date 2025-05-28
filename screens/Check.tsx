@@ -56,7 +56,7 @@ const CheckScreen: React.FC = () => {
         style={styles.button}
         onPress={() => {
           /* TODO: 실제 권한 요청 로직 삽입 */
-          navigation.navigate('Login');
+          navigation.navigate('CallHistory');
         }}
       >
         <Text style={styles.buttonText}>확인</Text>
