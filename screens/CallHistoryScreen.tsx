@@ -27,6 +27,11 @@ const DATA: CallItem[] = [
   { id: '6', name: '오현택',             lastMessage: '노트북이 부서졌다는 것에 대한 이야기', unread: 0 },
   { id: '7', name: '010-1122-3344', lastMessage: '연애 상담에 대한 이야기',           unread: 0 },
   { id: '8', name: '010-1112-2233', lastMessage: '요즘 피부가 좋지 않다는 것에 대한 이야기', unread: 0 },
+  { id: '9', name: '010-2334-3233',             lastMessage: '과제에 대한 이야기',         unread: 3 },
+  { id: '10', name: '010-3234-1343',             lastMessage: '내 마음이 부서졌다는 것에 대한 이야기', unread: 0 },
+  { id: '11', name: '010-1132-3344', lastMessage: '상담에 대한 이야기',           unread: 0 },
+  { id: '12', name: '010-1332-2233', lastMessage: '좋지 않다는 것에 대한 이야기', unread: 0 },
+  { id: '13', name: '010-1332-2227', lastMessage: '피곤하다는 이야기', unread: 5 },
 ];
 
 // 네비게이션 타입 정의: 'CallHistory' 스크린에서 사용할 NavigationProp
