@@ -12,14 +12,11 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../App';
+import type { RootStackParamList, CallItem } from '../App';  
+// ← App.tsx에서 export한 CallItem 인터페이스를 가져옴
 
-interface CallItem {
-  id: string;
-  name: string;
-  lastMessage: string;
-  unread: number;
-}
+// 만약 App.tsx에서 CallItem을 export하지 않았다면,
+// 인터페이스를 그대로 다시 선언하거나 /screens 내부에 공통 파일로 옮겨서 import 가능함.
 
 const DATA: CallItem[] = [
   { id: '1', name: '010-1234-5678', lastMessage: '좋은 상품이 나왔다는 것에 대한 이야기', unread: 9 },
@@ -32,6 +29,7 @@ const DATA: CallItem[] = [
   { id: '8', name: '010-1112-2233', lastMessage: '요즘 피부가 좋지 않다는 것에 대한 이야기', unread: 0 },
 ];
 
+// 네비게이션 타입 정의: 'CallHistory' 스크린에서 사용할 NavigationProp
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'CallHistory'>;
 
 const CallHistoryScreen: React.FC = () => {
@@ -40,7 +38,8 @@ const CallHistoryScreen: React.FC = () => {
   const renderItem = ({ item }: { item: CallItem }) => (
     <TouchableOpacity
       style={styles.item}
-      onPress={() => navigation.navigate('Chat', { contact: item })}
+      // ← 'Chat' 대신 'Profile'로 네비게이션 경로를 변경함
+      onPress={() => navigation.navigate('Profile', { contact: item })}
     >
       <View style={styles.avatar} />
       <View style={styles.body}>
