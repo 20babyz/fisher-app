@@ -1,5 +1,5 @@
 // src/screens/Profile.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -8,23 +8,70 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, CallItem } from '../App'; 
-// ← App.tsx에서 export한 CallItem을 같이 import
+import type { RootStackParamList, CallItem } from '../App';
 
-// 수정된 타입 정의: ProfileRouteProp에서는 반드시 contact을 가지도록 정의
+// react-native-document-picker 설치 필요: 
+// npm install react-native-document-picker
+import DocumentPicker, {
+  DocumentPickerResponse,
+} from 'react-native-document-picker';
+
 type ProfileRouteProp = RouteProp<RootStackParamList, 'Profile'>;
 type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+
+// 실제 업로드할 서버 URL로 교체할 것
+const UPLOAD_URL = 'https://your-server.com/api/upload-audio';
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileNavProp>();
   const route = useRoute<ProfileRouteProp>();
-
-  // route.params.contact가 존재하므로, 아래 코드에서 오류가 발생하지 않음
   const { contact } = route.params;
+
+  // 음성 파일을 선택하고 서버로 전송하는 함수
+  const handlePickAudio = useCallback(async () => {
+    try {
+      // DocumentPicker를 사용하여 오디오 파일만 선택
+      const res: DocumentPickerResponse = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.audio],
+      });
+
+      // FormData에 파일 첨부
+      const formData = new FormData();
+      formData.append('voice', {
+        uri: res.uri,
+        type: res.type ?? 'audio/mpeg',
+        name: res.name ?? 'voice.mp3',
+      } as any);
+
+      // 서버로 POST 요청 전송
+      const response = await fetch(UPLOAD_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP status ${response.status}`);
+      }
+
+      Alert.alert('업로드 완료', '음성 파일이 서버로 전송됨');
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        // 사용자가 파일 선택을 취소한 경우
+        console.log('사용자가 파일 선택을 취소함');
+      } else {
+        console.error(err);
+        Alert.alert('업로드 실패', '음성 파일 전송 중 오류 발생');
+      }
+    }
+  }, []);
 
   // 예시 대화 목록 (하드코딩)
   const messages = [
@@ -52,21 +99,33 @@ const ProfileScreen: React.FC = () => {
           {contact.name} {contact.id}
         </Text>
 
-        {/* 오른쪽 빈 공간 (제목 중앙 정렬하기 위함) */}
+        {/* 오른쪽 빈 공간 (제목 중앙 정렬용) */}
         <View style={styles.closeButton} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* 프로필 이미지 (예시) */}
+        {/* 프로필 이미지 */}
         <Image
-          source={{
-            uri: 'https://via.placeholder.com/350x200.png?text=Profile+Image',
-          }}
+          source={require('../assets/fisher.png')}
           style={styles.profileImage}
           resizeMode="cover"
         />
 
-        {/* 통화 정보 */}
+        {/* 음성 업로드 & 좋아요 버튼 */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handlePickAudio}
+          >
+            <Icon name="mic-outline" size={24} color="#0066FF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton}>
+            <Icon name="heart-outline" size={24} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
+
+        {/* 통화 정보: 날짜, 제목, 통화 길이 */}
         <View style={styles.infoContainer}>
           <Text style={styles.callDate}>4월 3일 오전 10시 21분</Text>
           <Text style={styles.callTitle}>캡스톤 과제에 대한 이야기</Text>
@@ -141,9 +200,18 @@ const styles = StyleSheet.create({
     height: 200,
     backgroundColor: '#F0F0F0',
   },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  actionButton: {
+    marginLeft: 16,
+  },
   infoContainer: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
   },
   callDate: {
     fontSize: 12,
