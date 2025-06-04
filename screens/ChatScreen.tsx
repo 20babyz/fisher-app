@@ -1,5 +1,5 @@
 // src/screens/ChatScreen.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -12,7 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../App';
+import type { RootStackParamList, CallItem } from '../App';
 
 // 채팅 목록에서 전달되는 연락처 정보 타입
 type ChatRoute = RouteProp<RootStackParamList, 'Chat'>;
@@ -21,21 +21,75 @@ type ChatNav = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
 const PRIMARY_BLUE = '#007AFF';
 const LIGHT_BG = '#F5F7FA';
 
-// 더미 메시지
-const MESSAGES = [
-  { id: '1', from: 'contact', text: '캡스톤 과제에 대한 이야기' },
-  { id: '2', from: 'contact', text: '학식이 맛있다는 것에 대한 이야기' },
-  { id: '3', from: 'me', text: '요즘 일몰이 예쁘다는 이야기' },
-  { id: '4', from: 'me', text: '내일 만나서 과제를 하자는 이야기' },
-];
+/**
+ * getRiskColor(percent): 0~100 사이 퍼센트에 따라 색상을 계산함
+ * - percent=0 → 회색(#EEEEEE)
+ * - percent=100 → 진짜 빨강(#FF3B30)
+ * - 그 사이 값은 빨강(#FF3B30)과 회색(#EEEEEE) 사이를 리니어 보간함
+ */
+function getRiskColor(percent: number): string {
+  const p = Math.max(0, Math.min(100, percent));
+  const r1 = 238, g1 = 238, b1 = 238;
+  const r2 = 255, g2 = 59, b2 = 48;
+  const ratio = p / 100;
+  const r = Math.round(r1 + (r2 - r1) * ratio);
+  const g = Math.round(g1 + (g2 - g1) * ratio);
+  const b = Math.round(b1 + (b2 - b1) * ratio);
+  return `rgb(${r},${g},${b})`;
+}
+
+interface Message {
+  id: string;
+  from: 'me' | 'contact';
+  text: string;
+}
 
 const ChatScreen: React.FC = () => {
-  // 타입 지정된 훅 사용
   const route = useRoute<ChatRoute>();
   const navigation = useNavigation<ChatNav>();
+  const contact: CallItem | undefined = route.params?.contact;
 
-  // params에서 contact 객체를 안전하게 꺼내기
-  const contact = route.params?.contact;
+  // 서버에서 받아올 위험도 값을 state로 세팅 (기본값 0)
+  const [voicePercent, setVoicePercent] = useState<number>(0);
+  const [deepPercent, setDeepPercent] = useState<number>(0);
+
+  // 대화 메시지 리스트 (서버가 없으므로 기본 4개 모두 "현재 대화내용이 없습니다.")
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', from: 'contact', text: '현재 대화내용이 없습니다.' },
+    { id: '2', from: 'contact', text: '현재 대화내용이 없습니다.' },
+    { id: '3', from: 'contact', text: '현재 대화내용이 없습니다.' },
+    { id: '4', from: 'contact', text: '현재 대화내용이 없습니다.' },
+  ]);
+
+  // "위험 번호 추가" 모드를 나타내는 state
+  const [isAddingRisk, setIsAddingRisk] = useState<boolean>(false);
+  const [riskNumber, setRiskNumber] = useState<string>('');
+
+  // 체크박스 상태 (true=체크됨, false=체크 해제)
+  const [isChecked, setIsChecked] = useState<boolean>(false);
+
+  /**
+   * 나중에 서버에서 위험도를 fetch해서 세팅할 예시:
+   * useEffect(() => {
+   *   fetch('https://your-server.com/api/getRisk?contactId=' + contact?.id)
+   *     .then(res => res.json())
+   *     .then(data => {
+   *       setVoicePercent(data.voicePercent);
+   *       setDeepPercent(data.deepPercent);
+   *     })
+   *     .catch(err => console.error(err));
+   * }, [contact]);
+   *
+   * 현재는 기본값 0%이므로 생략함
+   */
+
+  const handleAddRiskNumber = () => {
+    // 여기서 riskNumber를 서버로 보낼 로직을 나중에 추가 가능함
+    // 예: fetch('https://your-server.com/api/addRisk', { method:'POST', body:{ number: riskNumber } })
+    // 화면 복귀
+    setRiskNumber('');
+    setIsAddingRisk(false);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -49,7 +103,8 @@ const ChatScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {MESSAGES.map((msg) => (
+        {/* 대화 메시지 영역 */}
+        {messages.map((msg) => (
           <View
             key={msg.id}
             style={[
@@ -63,40 +118,81 @@ const ChatScreen: React.FC = () => {
           </View>
         ))}
 
-        {/* 일정 카드 */}
-        <View style={styles.scheduleCard}>
-          <TouchableOpacity style={styles.radioRow}>
-            <Icon name="radio-button-on" size={18} color={PRIMARY_BLUE} />
-            <Text style={styles.scheduleLabel}>일정 생성</Text>
-          </TouchableOpacity>
+        {/* 위험 통화 분석 영역 */}
+        <View style={styles.analysisContainer}>
+          <Text style={styles.analysisTitle}>위험 통화 분석</Text>
 
-          {[1, 2].map((i) => (
-            <TouchableOpacity key={i} style={styles.scheduleItem}>
-              <Text style={styles.scheduleTime}>2025년 3월 21일 12:30 국제관</Text>
-              <Text style={styles.scheduleDesc} numberOfLines={1}>
-                캡스톤 과제를 같이 하는것에 대한 일정
-              </Text>
-              {i === 1 && (
-                <Icon
-                  name="checkmark"
-                  size={20}
-                  color={PRIMARY_BLUE}
-                  style={styles.checkIcon}
-                />
-              )}
+          {/* 보이스피싱 위험도 */}
+          <View style={styles.riskRow}>
+            <Text style={styles.riskLabel}>보이스피싱 위험도</Text>
+            <View style={styles.riskBarBackground}>
+              <View
+                style={[
+                  styles.riskBarFill,
+                  { backgroundColor: getRiskColor(voicePercent), flex: voicePercent / 100 },
+                ]}
+              >
+                <Text style={styles.riskBarText}>{voicePercent}%</Text>
+              </View>
+              <View style={{ flex: (100 - voicePercent) / 100 }} />
+            </View>
+          </View>
+
+          {/* 딥보이스 위험도 */}
+          <View style={styles.riskRow}>
+            <Text style={styles.riskLabel}>딥보이스 위험도</Text>
+            {deepPercent > 0 ? (
+              <View style={[styles.riskBarBackground, { width: '50%' }]}>
+                <View
+                  style={[
+                    styles.riskBarFill,
+                    { backgroundColor: getRiskColor(deepPercent), flex: deepPercent / 100 },
+                  ]}
+                >
+                  <Text style={styles.riskBarText}>{deepPercent}%</Text>
+                </View>
+                <View style={{ flex: (100 - deepPercent) / 100 }} />
+              </View>
+            ) : (
+              <Text style={styles.riskNoneText}>딥보이스 가능성 없음</Text>
+            )}
+          </View>
+
+          {/* 위험번호 추가 / 입력창 모드 */}
+          {!isAddingRisk ? (
+            <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingRisk(true)}>
+              <Text style={styles.addButtonText}>+ 위험번호로 추가하기</Text>
             </TouchableOpacity>
-          ))}
+          ) : (
+            <View style={styles.inputRiskRow}>
+              <TextInput
+                style={styles.riskInputBox}
+                placeholder="전화번호 입력"
+                keyboardType="phone-pad"
+                value={riskNumber}
+                onChangeText={setRiskNumber}
+              />
+              <TouchableOpacity style={styles.confirmButton} onPress={handleAddRiskNumber}>
+                <Text style={styles.confirmButtonText}>추가</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          <TouchableOpacity style={styles.addCalendarRow}>
-            <Icon name="add" size={18} color={PRIMARY_BLUE} />
-            <Text style={styles.addCalendarText}>캘린더에 추가하기</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.shareRow}>
-            <Icon name="checkbox" size={18} color={PRIMARY_BLUE} />
-            <Text style={styles.shareText}>해당 일정을 승인 및 공유하기</Text>
-          </TouchableOpacity>
+          {/* 체크박스 */}
+          <View style={styles.checkboxRow}>
+            <TouchableOpacity
+              style={[
+                styles.checkboxBox,
+                isChecked ? styles.checkboxBoxChecked : null,
+              ]}
+              onPress={() => setIsChecked((prev) => !prev)}
+            >
+              {isChecked && <Icon name="checkmark" size={16} color="#fff" />}
+            </TouchableOpacity>
+            <Text style={styles.checkboxLabel}>위험 번호로 승인 및 공유하기</Text>
+          </View>
         </View>
+        {/* 위험 통화 분석 영역 끝 */}
       </ScrollView>
 
       {/* 메세지 입력창 */}
@@ -108,6 +204,8 @@ const ChatScreen: React.FC = () => {
   );
 };
 
+export default ChatScreen;
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   headerRow: {
@@ -118,36 +216,130 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontWeight: '600' },
   content: { padding: 16 },
+
+  // 채팅 버블
   bubble: { maxWidth: '75%', borderRadius: 16, padding: 12, marginBottom: 8 },
   bubbleMe: { alignSelf: 'flex-end', backgroundColor: PRIMARY_BLUE },
   bubbleYou: { alignSelf: 'flex-start', backgroundColor: LIGHT_BG },
   meText: { color: '#fff' },
   youText: { color: '#000' },
-  scheduleCard: {
+
+  // ------------------------------------------
+  // 위험 통화 분석 영역
+  // ------------------------------------------
+  analysisContainer: {
+    marginTop: 16,
+    padding: 16,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: LIGHT_BG,
-    padding: 12,
-    marginTop: 16,
+    borderColor: '#E0E0E0',
   },
-  radioRow: { flexDirection: 'row', alignItems: 'center' },
-  scheduleLabel: { marginLeft: 8, fontWeight: '600' },
-  scheduleItem: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 8,
+  analysisTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#000',
+  },
+  riskRow: {
+    marginBottom: 12,
+  },
+  riskLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 4,
+    color: '#333',
+  },
+  // 바(bar) 전체 배경 (회색)
+  riskBarBackground: {
+    flexDirection: 'row',
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#EEEEEE',
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  // 채워진 부분
+  riskBarFill: {
+    height: '100%',
+    justifyContent: 'center',
+    paddingLeft: 8,
+  },
+  // 채워진 바 안의 텍스트 (흰색)
+  riskBarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // 딥보이스 퍼센트가 0일 때 표시
+  riskNoneText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  // “+ 위험번호로 추가하기” 버튼
+  addButton: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  addButtonText: {
+    fontSize: 13,
+    color: PRIMARY_BLUE,
+    fontWeight: '600',
+  },
+  // 위험번호 입력창 Row
+  inputRiskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  riskInputBox: {
+    flex: 1,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: LIGHT_BG,
-    position: 'relative',
+    borderColor: '#ccc',
+    paddingHorizontal: 12,
+    marginRight: 8,
   },
-  scheduleTime: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  scheduleDesc: { fontSize: 12, color: '#666' },
-  checkIcon: { position: 'absolute', right: 8, top: 8 },
-  addCalendarRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  addCalendarText: { color: PRIMARY_BLUE, marginLeft: 4 },
-  shareRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  shareText: { color: PRIMARY_BLUE, marginLeft: 4 },
+  confirmButton: {
+    backgroundColor: PRIMARY_BLUE,
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // 체크박스 영역
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: PRIMARY_BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  checkboxBoxChecked: {
+    backgroundColor: PRIMARY_BLUE,
+    borderColor: PRIMARY_BLUE,
+  },
+  checkboxLabel: {
+    fontSize: 12,
+    color: '#333',
+  },
+
+  // ------------------------------------------
+  // 메세지 입력창
+  // ------------------------------------------
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -164,5 +356,3 @@ const styles = StyleSheet.create({
     height: 36,
   },
 });
-
-export default ChatScreen;
