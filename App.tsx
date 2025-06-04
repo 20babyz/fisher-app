@@ -1,156 +1,47 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
+// src/App.tsx
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  PermissionsAndroid,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import RNCallKeep from 'react-native-callkeep';
+import LoginScreen       from './screens/LoginScreen';
+import SignupScreen      from './screens/SignupScreen';
+import CheckScreen       from './screens/Check';
+import CallHistoryScreen from './screens/CallHistoryScreen';
+import ChatScreen        from './screens/ChatScreen';
+import Profile           from './screens/Profile';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+// CallItem 인터페이스를 App.tsx에서도 재사용하도록 export하거나,
+// 바로 아래 RootStackParamList에 모양을 정의해 줌.
+export interface CallItem {
+  id: string;
+  name: string;
+  lastMessage: string;
+  unread: number;
 }
 
-RNCallKeep.setup({
-  ios: {
-    appName: 'Fisher',
-  },
-  android: {
-    alertTitle: 'Permissions required',
-    alertDescription: 'This application needs to access your phone accounts',
-    cancelButton: 'Cancel',
-    okButton: 'ok',
-    additionalPermissions: [
-      PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS,
-      PermissionsAndroid.PERMISSIONS.CALL_PHONE,
-    ],
-    foregroundService: {
-      channelId: 'com.dku.fisher',
-      channelName: 'Foreground service for fisher',
-      notificationTitle: 'Fisher is running on background',
-      notificationIcon: 'Path to the resource icon of the notification',
-    },
-  },
-}).then(accepted => {});
+// 수정된 RootStackParamList: Profile에 contact 파라미터가 들어오도록 정의함
+export type RootStackParamList = {
+  Login:       undefined;
+  Signup:      undefined;
+  Check:       undefined;
+  CallHistory: undefined;
+  Profile:     { contact: CallItem };   // ← 여기를 undefined → { contact: CallItem } 으로 변경
+  Chat:        { contact: CallItem };
+};
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
-
-  return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+const App: React.FC = () => (
+  <NavigationContainer>
+    <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login"       component={LoginScreen}       />
+      <Stack.Screen name="Signup"      component={SignupScreen}      />
+      <Stack.Screen name="Check"       component={CheckScreen}       />
+      <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
+      <Stack.Screen name="Chat"        component={ChatScreen}        />
+      <Stack.Screen name="Profile"     component={Profile}           />
+    </Stack.Navigator>
+  </NavigationContainer>
+);
 
 export default App;

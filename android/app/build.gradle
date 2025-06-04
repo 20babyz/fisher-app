@@ -117,3 +117,7 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 아래 한 줄만 추가하세요: react-native-vector-icons 에 포함된 폰트를 apk(asset)에 자동 포함합니다.
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
