@@ -1,4 +1,5 @@
 // src/screens/ChatScreen.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { pick, types as DocumentPickerTypes } from '@react-native-documents/picker'; // ✅ 변경된 구문
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, CallItem } from '../App';
@@ -19,7 +21,7 @@ type ChatRoute = RouteProp<RootStackParamList, 'Chat'>;
 type ChatNav = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
 
 const PRIMARY_BLUE = '#007AFF';
-const LIGHT_BG = '#F5F7FA';
+const LIGHT_BG     = '#F5F7FA';
 
 /**
  * getRiskColor(percent): 0~100 사이 퍼센트에 따라 색상을 계산함
@@ -30,11 +32,11 @@ const LIGHT_BG = '#F5F7FA';
 function getRiskColor(percent: number): string {
   const p = Math.max(0, Math.min(100, percent));
   const r1 = 238, g1 = 238, b1 = 238;
-  const r2 = 255, g2 = 59, b2 = 48;
+  const r2 = 255, g2 = 59,  b2 = 48;
   const ratio = p / 100;
-  const r = Math.round(r1 + (r2 - r1) * ratio);
-  const g = Math.round(g1 + (g2 - g1) * ratio);
-  const b = Math.round(b1 + (b2 - b1) * ratio);
+  const r     = Math.round(r1 + (r2 - r1) * ratio);
+  const g     = Math.round(g1 + (g2 - g1) * ratio);
+  const b     = Math.round(b1 + (b2 - b1) * ratio);
   return `rgb(${r},${g},${b})`;
 }
 
@@ -51,7 +53,8 @@ const ChatScreen: React.FC = () => {
 
   // 서버에서 받아올 위험도 값을 state로 세팅 (기본값 0)
   const [voicePercent, setVoicePercent] = useState<number>(0);
-  const [deepPercent, setDeepPercent] = useState<number>(0);
+  const [deepPercent, setDeepPercent]   = useState<number>(0);
+  const [deepVoiceMessage, setDeepVoiceMessage] = useState<string>('');  // 딥보이스 결과 메시지
 
   // 대화 메시지 리스트 (서버가 없으므로 기본 4개 모두 "현재 대화내용이 없습니다.")
   const [messages, setMessages] = useState<Message[]>([
@@ -63,7 +66,7 @@ const ChatScreen: React.FC = () => {
 
   // "위험 번호 추가" 모드를 나타내는 state
   const [isAddingRisk, setIsAddingRisk] = useState<boolean>(false);
-  const [riskNumber, setRiskNumber] = useState<string>('');
+  const [riskNumber, setRiskNumber]     = useState<string>('');
 
   // 체크박스 상태 (true=체크됨, false=체크 해제)
   const [isChecked, setIsChecked] = useState<boolean>(false);
@@ -82,13 +85,80 @@ const ChatScreen: React.FC = () => {
    *
    * 현재는 기본값 0%이므로 생략함
    */
-
   const handleAddRiskNumber = () => {
     // 여기서 riskNumber를 서버로 보낼 로직을 나중에 추가 가능함
     // 예: fetch('https://your-server.com/api/addRisk', { method:'POST', body:{ number: riskNumber } })
     // 화면 복귀
     setRiskNumber('');
     setIsAddingRisk(false);
+  };
+
+  /**
+   * 마이크 아이콘을 눌렀을 때:
+   * const [res] = await pick({ type: [DocumentPickerTypes.audio], allowMultiSelection: false });
+   */
+  const handlePickAndUpload = async () => {
+    try {
+      // ✅ 변경: pick()은 배열을 반환하므로 비구조화할당으로 1개 요소 꺼냄
+      const [res] = await pick({
+        type: [DocumentPickerTypes.audio],
+        allowMultiSelection: false,
+        copyTo: 'cachesDirectory', // (선택) iOS/Android 에 따라 임시 복사 경로
+      });
+
+      // res: { uri, name, size, mimeType, … }
+      const { uri, name, type } = res;
+
+      // FormData 생성 → 서버 업로드 로직 (기존과 동일)
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        name: name,
+        type: type || 'audio/flac',
+      } as any);
+
+      // Android Emulator 환경:
+      const SERVER_URL = 'http://10.0.2.2:8000/predict';
+      const response = await fetch(SERVER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        console.error('서버 응답 오류:', response.status);
+        return;
+      }
+
+      const json = await response.json();
+      // json 예시: { filename: 'xxx.flac', probability: '0.1234', result: 'spoof 🔴' }
+
+      const probNum = parseFloat(json.probability) * 100;
+      setDeepPercent(Math.round(probNum));
+      const deepMsg = json.result.includes('spoof')
+        ? '딥보이스 가능성 있음'
+        : '딥보이스 가능성 없음';
+      setDeepVoiceMessage(deepMsg);
+
+      // (선택) 채팅 메시지 영역에도 결과 추가
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: String(prev.length + 1),
+          from: 'contact',
+          text: `파일: ${json.filename} → ${deepMsg} (${json.probability})`,
+        },
+      ]);
+    } catch (err: any) {
+      // 새로운 패키지에도 isCancel()이 있으며, err.code==='USER_CANCELED'로 동작함
+      if (err && err.code === 'USER_CANCELED') {
+        console.log('사용자가 파일 선택을 취소함');
+      } else {
+        console.error('파일 선택/업로드 중 에러:', err);
+      }
+    }
   };
 
   return (
@@ -99,7 +169,10 @@ const ChatScreen: React.FC = () => {
           <Icon name="chevron-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{contact?.name}</Text>
-        <View style={{ width: 24 }} />
+        {/* 마이크 아이콘: 누르면 handlePickAndUpload 호출 */}
+        <TouchableOpacity onPress={handlePickAndUpload}>
+          <Icon name="mic-outline" size={24} color={PRIMARY_BLUE} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -146,21 +219,42 @@ const ChatScreen: React.FC = () => {
                 <View
                   style={[
                     styles.riskBarFill,
-                    { backgroundColor: getRiskColor(deepPercent), flex: deepPercent / 100 },
+                    {
+                      // 딥보이스 가능성 있으면 바 전체 빨간색
+                      backgroundColor:
+                        deepVoiceMessage === '딥보이스 가능성 있음'
+                          ? getRiskColor(100)
+                          : getRiskColor(deepPercent),
+                      flex:
+                        deepVoiceMessage === '딥보이스 가능성 있음'
+                          ? 1
+                          : deepPercent / 100,
+                    },
                   ]}
                 >
-                  <Text style={styles.riskBarText}>{deepPercent}%</Text>
+                  <Text style={styles.riskBarText}>
+                    {deepVoiceMessage === '딥보이스 가능성 있음'
+                      ? '위험'
+                      : `${deepPercent}%`}
+                  </Text>
                 </View>
-                <View style={{ flex: (100 - deepPercent) / 100 }} />
+                {deepVoiceMessage !== '딥보이스 가능성 있음' && (
+                  <View style={{ flex: (100 - deepPercent) / 100 }} />
+                )}
               </View>
             ) : (
-              <Text style={styles.riskNoneText}>딥보이스 가능성 없음</Text>
+              <Text style={styles.riskNoneText}>
+                {deepVoiceMessage || '딥보이스 가능성 없음'}
+              </Text>
             )}
           </View>
 
           {/* 위험번호 추가 / 입력창 모드 */}
           {!isAddingRisk ? (
-            <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingRisk(true)}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setIsAddingRisk(true)}
+            >
               <Text style={styles.addButtonText}>+ 위험번호로 추가하기</Text>
             </TouchableOpacity>
           ) : (
@@ -172,7 +266,10 @@ const ChatScreen: React.FC = () => {
                 value={riskNumber}
                 onChangeText={setRiskNumber}
               />
-              <TouchableOpacity style={styles.confirmButton} onPress={handleAddRiskNumber}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleAddRiskNumber}
+              >
                 <Text style={styles.confirmButtonText}>추가</Text>
               </TouchableOpacity>
             </View>
@@ -189,7 +286,9 @@ const ChatScreen: React.FC = () => {
             >
               {isChecked && <Icon name="checkmark" size={16} color="#fff" />}
             </TouchableOpacity>
-            <Text style={styles.checkboxLabel}>위험 번호로 승인 및 공유하기</Text>
+            <Text style={styles.checkboxLabel}>
+              위험 번호로 승인 및 공유하기
+            </Text>
           </View>
         </View>
         {/* 위험 통화 분석 영역 끝 */}
