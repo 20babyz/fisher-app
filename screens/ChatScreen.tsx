@@ -1,6 +1,6 @@
 // src/screens/ChatScreen.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { pick, types as DocumentPickerTypes } from '@react-native-documents/picker'; // ✅ 변경된 구문
+import { pick, types as DocumentPickerTypes } from '@react-native-documents/picker';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, CallItem } from '../App';
@@ -71,20 +71,6 @@ const ChatScreen: React.FC = () => {
   // 체크박스 상태 (true=체크됨, false=체크 해제)
   const [isChecked, setIsChecked] = useState<boolean>(false);
 
-  /**
-   * 나중에 서버에서 위험도를 fetch해서 세팅할 예시:
-   * useEffect(() => {
-   *   fetch('https://your-server.com/api/getRisk?contactId=' + contact?.id)
-   *     .then(res => res.json())
-   *     .then(data => {
-   *       setVoicePercent(data.voicePercent);
-   *       setDeepPercent(data.deepPercent);
-   *     })
-   *     .catch(err => console.error(err));
-   * }, [contact]);
-   *
-   * 현재는 기본값 0%이므로 생략함
-   */
   const handleAddRiskNumber = () => {
     // 여기서 riskNumber를 서버로 보낼 로직을 나중에 추가 가능함
     // 예: fetch('https://your-server.com/api/addRisk', { method:'POST', body:{ number: riskNumber } })
@@ -99,14 +85,14 @@ const ChatScreen: React.FC = () => {
    */
   const handlePickAndUpload = async () => {
     try {
-      // ✅ 변경: pick()은 배열을 반환하므로 비구조화할당으로 1개 요소 꺼냄
+      // pick()은 배열을 반환하므로 비구조화할당으로 1개 요소 꺼냄
       const [res] = await pick({
         type: [DocumentPickerTypes.audio],
         allowMultiSelection: false,
         copyTo: 'cachesDirectory', // (선택) iOS/Android 에 따라 임시 복사 경로
       });
 
-      // res: { uri, name, size, mimeType, … }
+      // res: { uri, name, size, type, … }
       const { uri, name, type } = res;
 
       // FormData 생성 → 서버 업로드 로직 (기존과 동일)
@@ -152,7 +138,7 @@ const ChatScreen: React.FC = () => {
         },
       ]);
     } catch (err: any) {
-      // 새로운 패키지에도 isCancel()이 있으며, err.code==='USER_CANCELED'로 동작함
+      // 새로운 패키지에도 err.code==='USER_CANCELED'로 취소 여부 확인 가능
       if (err && err.code === 'USER_CANCELED') {
         console.log('사용자가 파일 선택을 취소함');
       } else {
@@ -211,35 +197,42 @@ const ChatScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* 딥보이스 위험도 */}
+          {/* 딥보이스 위험도 (게이지 바 전체 너비로 확장) */}
           <View style={styles.riskRow}>
             <Text style={styles.riskLabel}>딥보이스 위험도</Text>
+
             {deepPercent > 0 ? (
-              <View style={[styles.riskBarBackground, { width: '50%' }]}>
-                <View
-                  style={[
-                    styles.riskBarFill,
-                    {
-                      // 딥보이스 가능성 있으면 바 전체 빨간색
-                      backgroundColor:
-                        deepVoiceMessage === '딥보이스 가능성 있음'
-                          ? getRiskColor(100)
-                          : getRiskColor(deepPercent),
-                      flex:
-                        deepVoiceMessage === '딥보이스 가능성 있음'
-                          ? 1
-                          : deepPercent / 100,
-                    },
-                  ]}
-                >
-                  <Text style={styles.riskBarText}>
-                    {deepVoiceMessage === '딥보이스 가능성 있음'
-                      ? '위험'
-                      : `${deepPercent}%`}
-                  </Text>
-                </View>
-                {deepVoiceMessage !== '딥보이스 가능성 있음' && (
-                  <View style={{ flex: (100 - deepPercent) / 100 }} />
+              // 외부 컨테이너는 전체 너비를 차지하도록 width 지정 제거
+              <View style={styles.riskBarBackground}>
+                {deepVoiceMessage === '딥보이스 가능성 있음' ? (
+                  // “딥보이스 가능성 있음”일 때는 flex:1로 전체 폭을 채우기
+                  <View
+                    style={[
+                      styles.riskBarFill,
+                      {
+                        backgroundColor: getRiskColor(100),
+                        flex: 1,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.riskBarText}>위험</Text>
+                  </View>
+                ) : (
+                  // “딥보이스 가능성 없음(퍼센트)”일 때는 deepPercent 비율만큼 채우기
+                  <>
+                    <View
+                      style={[
+                        styles.riskBarFill,
+                        {
+                          backgroundColor: getRiskColor(deepPercent),
+                          flex: deepPercent / 100,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.riskBarText}>{`${deepPercent}%`}</Text>
+                    </View>
+                    <View style={{ flex: (100 - deepPercent) / 100 }} />
+                  </>
                 )}
               </View>
             ) : (
@@ -306,22 +299,45 @@ const ChatScreen: React.FC = () => {
 export default ChatScreen;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 16, fontWeight: '600' },
-  content: { padding: 16 },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  content: {
+    padding: 16,
+  },
 
   // 채팅 버블
-  bubble: { maxWidth: '75%', borderRadius: 16, padding: 12, marginBottom: 8 },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: PRIMARY_BLUE },
-  bubbleYou: { alignSelf: 'flex-start', backgroundColor: LIGHT_BG },
-  meText: { color: '#fff' },
-  youText: { color: '#000' },
+  bubble: {
+    maxWidth: '75%',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 8,
+  },
+  bubbleMe: {
+    alignSelf: 'flex-end',
+    backgroundColor: PRIMARY_BLUE,
+  },
+  bubbleYou: {
+    alignSelf: 'flex-start',
+    backgroundColor: LIGHT_BG,
+  },
+  meText: {
+    color: '#fff',
+  },
+  youText: {
+    color: '#000',
+  },
 
   // ------------------------------------------
   // 위험 통화 분석 영역
@@ -357,6 +373,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEEEEE',
     overflow: 'hidden',
     alignItems: 'center',
+    // width 속성 없음 → 기본적으로 부모 너비(화면 전체 너비) 사용
   },
   // 채워진 부분
   riskBarFill: {
