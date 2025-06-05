@@ -1,5 +1,6 @@
 // src/screens/Profile.tsx
-import React, { useCallback } from 'react';
+
+import React from 'react';
 import {
   SafeAreaView,
   View,
@@ -8,70 +9,19 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, CallItem } from '../App';
 
-// react-native-document-picker 설치 필요: 
-// npm install react-native-document-picker
-import DocumentPicker, {
-  DocumentPickerResponse,
-} from 'react-native-document-picker';
-
 type ProfileRouteProp = RouteProp<RootStackParamList, 'Profile'>;
 type ProfileNavProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
-
-// 실제 업로드할 서버 URL로 교체할 것
-const UPLOAD_URL = 'https://your-server.com/api/upload-audio';
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileNavProp>();
   const route = useRoute<ProfileRouteProp>();
   const { contact } = route.params;
-
-  // 음성 파일을 선택하고 서버로 전송하는 함수
-  const handlePickAudio = useCallback(async () => {
-    try {
-      // DocumentPicker를 사용하여 오디오 파일만 선택
-      const res: DocumentPickerResponse = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.audio],
-      });
-
-      // FormData에 파일 첨부
-      const formData = new FormData();
-      formData.append('voice', {
-        uri: res.uri,
-        type: res.type ?? 'audio/mpeg',
-        name: res.name ?? 'voice.mp3',
-      } as any);
-
-      // 서버로 POST 요청 전송
-      const response = await fetch(UPLOAD_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP status ${response.status}`);
-      }
-
-      Alert.alert('업로드 완료', '음성 파일이 서버로 전송됨');
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        // 사용자가 파일 선택을 취소한 경우
-        console.log('사용자가 파일 선택을 취소함');
-      } else {
-        console.error(err);
-        Alert.alert('업로드 실패', '음성 파일 전송 중 오류 발생');
-      }
-    }
-  }, []);
 
   // 예시 대화 목록 (하드코딩)
   const messages = [
@@ -111,15 +61,8 @@ const ProfileScreen: React.FC = () => {
           resizeMode="cover"
         />
 
-        {/* 음성 업로드 & 좋아요 버튼 */}
+        {/* 좋아요 버튼만 남겨두고 “음성 업로드” 버튼 제거 */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handlePickAudio}
-          >
-            <Icon name="mic-outline" size={24} color="#0066FF" />
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.actionButton}>
             <Icon name="heart-outline" size={24} color="#FF3B30" />
           </TouchableOpacity>
