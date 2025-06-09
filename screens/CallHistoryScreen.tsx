@@ -1,6 +1,4 @@
-// src/screens/CallHistoryScreen.tsx
-
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import {
   SafeAreaView,
   SectionList,
@@ -14,76 +12,47 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../App';
-import { RiskContext } from '../context/RiskContext';
+import { CallHistoryContext, HistoryItem } from '../context/CallHistoryContext';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'CallHistory'>;
 
-interface HistoryItem {
-  id: string;
-  name: string;
-  category: '보이스피싱 의심' | '딥보이스 의심' | '안심 통화' | '통화 내용 없음';
-  callType: 'incoming' | 'outgoing' | 'missed';
-  time: string;
-  summary: string;
-}
+/* ───────── 요일 한글 매핑 ───────── */
+const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
-const SECTIONS: { title: string; data: HistoryItem[] }[] = [
-  {
-    title: '6월 2일 월요일',
-    data: [
-      {
-        id: '1',
-        name: '070-5232-5486',
-        category: '보이스피싱 의심',
-        callType: 'incoming',
-        time: '오후 3:58',
-        summary: '발신 전화 | 2분 5초',
-      },
-      {
-        id: '2',
-        name: '02-6344-4478',
-        category: '안심 통화',
-        callType: 'outgoing',
-        time: '오후 2:18',
-        summary: '수신 전화 | 1분 12초',
-      },
-    ],
-  },
-  {
-    title: '5월 31일 토요일',
-    data: [
-      {
-        id: '3',
-        name: '조민혁 (모시공20)',
-        category: '통화 내용 없음',
-        callType: 'missed',
-        time: '오후 7:13',
-        summary: '부재중 전화',
-      },
-    ],
-  },
-  {
-    title: '5월 30일 금요일',
-    data: [
-      {
-        id: '4',
-        name: '010-1122-3344',
-        category: '딥보이스 의심',
-        callType: 'outgoing',
-        time: '오전 12:00',
-        summary: '발신 전화 | 3분 27초',
-      },
-    ],
-  },
-];
-
+/* ───────── 메인 컴포넌트 ───────── */
 const CallHistoryScreen: React.FC = () => {
-  const { riskNumbers } = useContext(RiskContext);
-  const navigation = useNavigation<NavProp>();
+  const { calls }   = useContext(CallHistoryContext);
+  const navigation   = useNavigation<NavProp>();
 
+  /* 날짜별 그룹핑 → SectionList 형태로 변환 */
+  const sections = useMemo(() => {
+    const grouped: Record<string, HistoryItem[]> = {};
+
+    calls.forEach(item => {
+      const d = new Date(item.dateTime);
+      const key = `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+
+    /* 날짜 최신순 정렬 */
+    return Object.keys(grouped)
+      .sort((a, b) => {
+        const tA = grouped[a][0].dateTime;
+        const tB = grouped[b][0].dateTime;
+        return tB.localeCompare(tA);
+      })
+      .map(title => ({
+        title,
+        data: grouped[title].sort((a, b) => b.dateTime.localeCompare(a.dateTime)),
+      }));
+  }, [calls]);
+
+  /* 아이템 렌더 */
   const renderItem = ({ item }: { item: HistoryItem }) => {
-    let iconName: string;
+    let iconName:  string;
     let iconColor: string;
+
     switch (item.callType) {
       case 'incoming':
         iconName = 'arrow-down-circle';
@@ -93,11 +62,20 @@ const CallHistoryScreen: React.FC = () => {
         iconName = 'arrow-up-circle';
         iconColor = '#007AFF';
         break;
-      case 'missed':
+      default:
         iconName = 'close-circle';
         iconColor = '#FF3B30';
-        break;
     }
+
+    /* HH:MM 형식 */
+    const timeStr = (() => {
+      const d = new Date(item.dateTime);
+      const h = d.getHours();
+      const m = d.getMinutes().toString().padStart(2, '0');
+      const period = h >= 12 ? '오후' : '오전';
+      const hour12 = ((h + 11) % 12 + 1).toString();
+      return `${period} ${hour12}:${m}`;
+    })();
 
     return (
       <TouchableOpacity
@@ -120,23 +98,24 @@ const CallHistoryScreen: React.FC = () => {
             <Text
               style={[
                 styles.category,
-                item.category === '안심 통화' && styles.categorySafe,
+                item.category === '안심 통화'     && styles.categorySafe,
                 item.category === '통화 내용 없음' && styles.categoryNone,
               ]}
             >
               {`<${item.category}>`}
             </Text>
           </View>
-          <Text style={styles.time}>{item.time}</Text>
+          <Text style={styles.time}>{timeStr}</Text>
         </View>
         <Text style={styles.summary}>{item.summary}</Text>
       </TouchableOpacity>
     );
   };
 
+  /* ───────── JSX ───────── */
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* 헤더 */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.editButton}
@@ -145,23 +124,27 @@ const CallHistoryScreen: React.FC = () => {
         >
           <Text style={styles.editText}>Edit</Text>
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>최근 기록</Text>
+
         <TouchableOpacity
           style={styles.editButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          onPress={() => navigation.navigate('AddCall')}
         >
-          <Icon name="create-outline" size={24} color="#007AFF" />
+          <Icon name="add-circle-outline" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
+      {/* 검색 (동작 미구현) */}
       <View style={styles.searchBar}>
         <Icon name="search-outline" size={20} color="#999" />
         <TextInput placeholder="Search" style={styles.searchInput} />
       </View>
 
+      {/* 섹션 리스트 */}
       <SectionList
-        sections={SECTIONS}
+        sections={sections}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         renderSectionHeader={({ section: { title } }) => (
@@ -175,6 +158,7 @@ const CallHistoryScreen: React.FC = () => {
 
 export default CallHistoryScreen;
 
+/* ───────── 스타일 ───────── */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
@@ -215,10 +199,8 @@ const styles = StyleSheet.create({
   info: { flex: 1, marginLeft: 12 },
   name: { fontSize: 16, fontWeight: '500' },
   category: { fontSize: 12, color: '#FF9500', marginTop: 2 },
-  // 안심 통화 태그: 초록
   categorySafe: { color: '#4CAF50' },
-  // 통화 내용 없음 태그: 회색
-  categoryNone: { color: '#999999' },
+  categoryNone: { color: '#999' },
   time: { fontSize: 12, color: '#999' },
   summary: { fontSize: 12, color: '#333', marginLeft: 36, marginTop: 4 },
 });
