@@ -83,7 +83,7 @@ const EditRiskScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="chevron-back" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>가입확인</Text>
+        <Text style={styles.headerTitle}>위험번호 관리</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -118,13 +118,13 @@ const EditRiskScreen: React.FC = () => {
                     style={styles.rejectButton}
                     onPress={() => handleReject(item.number)}
                   >
-                    <Text style={styles.rejectText}>거절</Text>
+                    <Text style={styles.rejectText}>삭제</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.approveButton}
                     onPress={() => handleApprove(item.number)}
                   >
-                    <Text style={styles.approveText}>승인</Text>
+                    <Text style={styles.approveText}>차단</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -132,7 +132,7 @@ const EditRiskScreen: React.FC = () => {
                   style={styles.blockButton}
                   onPress={() => handleBlock(item.number)}
                 >
-                  <Text style={styles.blockText}>차단</Text>
+                  <Text style={styles.blockText}>차단 중</Text>
                 </TouchableOpacity>
               )}
             </View>
