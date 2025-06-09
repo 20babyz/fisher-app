@@ -1,3 +1,4 @@
+// src/screens/AddCallScreen.tsx
 import React, { useState, useContext } from 'react';
 import {
   SafeAreaView,
@@ -19,7 +20,7 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, 'AddCall'>;
 
 const AddCallScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
-  const { addCall } = useContext(CallHistoryContext);           /* ★ */
+  const { addCall } = useContext(CallHistoryContext);
 
   /* 입력 상태 */
   const [name, setName]         = useState('');
@@ -36,8 +37,8 @@ const AddCallScreen: React.FC = () => {
     if (sel) setDate(sel);
   };
 
-  /* 시간 텍스트 헬퍼 */
-  const formatTimeKorean = (d: Date): string => {
+  /* HH:MM → “오전/오후 h:mm” */
+  const formatTimeKorean = (d: Date) => {
     const h = d.getHours();
     const m = d.getMinutes().toString().padStart(2, '0');
     const period = h >= 12 ? '오후' : '오전';
@@ -45,28 +46,26 @@ const AddCallScreen: React.FC = () => {
     return `${period} ${hour12}:${m}`;
   };
 
-  /* 저장 */
+  /* 저장 → CallHistory 추가 후 Chat2로 이동 */
   const handleSave = () => {
-    const id = Date.now().toString();
-
-    /* 이름·번호 처리 */
+    const id          = Date.now().toString();
     const displayName = name.trim() || number.trim() || '알 수 없음';
-
-    /* 요약(발신/수신) */
-    const summary = `${callType === 'incoming' ? '수신 전화' : '발신 전화'} | ${duration}`;
+    const summary     = `${callType === 'incoming' ? '수신 전화' : '발신 전화'} | ${duration}`;
 
     addCall({
       id,
       name: displayName,
-      category: '통화 내용 없음',      // 기본값
+      category: '통화 내용 없음',
       callType,
       summary,
       dateTime: date.toISOString(),
     });
 
-    navigation.goBack();
+    /* ChatScreen2 로 교체 이동 */
+    navigation.replace('Chat2', { callId: id, name: displayName });
   };
 
+  /* ─── UI ─── */
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.inner}>
@@ -79,7 +78,7 @@ const AddCallScreen: React.FC = () => {
           <View style={{ width: 24 }} />
         </View>
 
-        {/* 입력 */}
+        {/* 이름 / 번호 */}
         <Text style={styles.label}>이름 / 번호</Text>
         <TextInput
           placeholder="예) 조민혁 010-1111-2234"
@@ -95,6 +94,7 @@ const AddCallScreen: React.FC = () => {
           keyboardType="phone-pad"
         />
 
+        {/* 날짜·시간 */}
         <Text style={styles.label}>날짜·시간</Text>
         <TouchableOpacity onPress={() => setPicker(true)} style={styles.dateBtn}>
           <Text>{formatTimeKorean(date)} ({date.toLocaleDateString()})</Text>
@@ -108,6 +108,7 @@ const AddCallScreen: React.FC = () => {
           />
         )}
 
+        {/* 통화 유형 */}
         <Text style={styles.label}>통화 유형</Text>
         <View style={styles.segment}>
           {(['incoming', 'outgoing'] as const).map(t => (
@@ -123,6 +124,7 @@ const AddCallScreen: React.FC = () => {
           ))}
         </View>
 
+        {/* 통화 시간 */}
         <Text style={styles.label}>통화 시간 (HH:MM:SS)</Text>
         <TextInput
           placeholder="예) 00:03:27"
@@ -132,6 +134,7 @@ const AddCallScreen: React.FC = () => {
           keyboardType="numeric"
         />
 
+        {/* 통화 내용 메모 */}
         <Text style={styles.label}>통화 내용</Text>
         <TextInput
           value={memo}
@@ -140,6 +143,7 @@ const AddCallScreen: React.FC = () => {
           multiline
         />
 
+        {/* 저장 버튼 */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveTxt}>통화 내용 등록하기</Text>
         </TouchableOpacity>
@@ -150,7 +154,7 @@ const AddCallScreen: React.FC = () => {
 
 export default AddCallScreen;
 
-/* ───────── 스타일 ───────── */
+/* ─── 스타일 ─── */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   inner: { padding: 20 },
