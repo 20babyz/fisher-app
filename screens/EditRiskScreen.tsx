@@ -1,5 +1,6 @@
 // src/screens/EditRiskScreen.tsx
-import React, { useState } from 'react';
+
+import React, { useContext, useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -7,113 +8,136 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, CallItem } from '../App';
+import { RiskContext } from '../context/RiskContext';
+import type { RootStackParamList } from '../App';
 
-// 컬러 상수
+type EditRiskNavProp = NativeStackNavigationProp<RootStackParamList, 'EditRisk'>;
 const PRIMARY_BLUE = '#007AFF';
 
-type EditRouteProp = RouteProp<RootStackParamList, 'EditRisk'>;
-type EditNavProp   = NativeStackNavigationProp<RootStackParamList, 'EditRisk'>;
-
 interface RiskItem {
-  number:   string;
+  number: string;
   approved: boolean;
 }
 
 const EditRiskScreen: React.FC = () => {
-  const navigation = useNavigation<EditNavProp>();
-  const route      = useRoute<EditRouteProp>();
-  const { contact, riskNumbers } = route.params;
+  const navigation = useNavigation<EditRiskNavProp>();
+  const { riskNumbers, setRiskNumbers } = useContext(RiskContext);
 
-  // 로컬 상태: 번호와 승인 상태
-  const [items, setItems] = useState<RiskItem[]>(
-    riskNumbers.map(num => ({ number: num, approved: false }))
-  );
+  // 로컬 승인/거절 관리
+  const [items, setItems] = useState<RiskItem[]>([]);
 
-  // 거절 → 삭제
+  // riskNumbers 가 바뀔 때마다 로컬 items 동기화
+  useEffect(() => {
+    setItems(riskNumbers.map(num => ({ number: num, approved: false })));
+  }, [riskNumbers]);
+
+  // 거절(삭제)
   const handleReject = (num: string) => {
-    setItems(prev => prev.filter(item => item.number !== num));
+    Alert.alert('삭제 확인', `"${num}"을(를) 거절(삭제)하시겠습니까?`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          // 컨텍스트와 로컬 모두에서 삭제
+          setRiskNumbers(prev => prev.filter(n => n !== num));
+          setItems(prev => prev.filter(i => i.number !== num));
+        },
+      },
+    ]);
   };
 
-  // 승인 → 차단 모드
+  // 승인 → 차단으로 전환
   const handleApprove = (num: string) => {
     setItems(prev =>
-      prev.map(item =>
-        item.number === num ? { ...item, approved: true } : item
+      prev.map(i =>
+        i.number === num ? { ...i, approved: true } : i
       )
     );
   };
 
-  // 차단 → 삭제
+  // 차단(최종삭제)
   const handleBlock = (num: string) => {
-    setItems(prev => prev.filter(item => item.number !== num));
+    Alert.alert('차단 확인', `"${num}"을(를) 차단하시겠습니까?`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '차단',
+        style: 'destructive',
+        onPress: () => {
+          setRiskNumbers(prev => prev.filter(n => n !== num));
+          setItems(prev => prev.filter(i => i.number !== num));
+        },
+      },
+    ]);
   };
-
-  const renderItem = ({ item }: { item: RiskItem }) => (
-    <View style={styles.itemRow}>
-      <Text style={styles.itemText}>{item.number}</Text>
-      <View style={styles.actionRow}>
-        {!item.approved ? (
-          <>
-            <TouchableOpacity
-              style={styles.rejectButton}
-              onPress={() => handleReject(item.number)}
-            >
-              <Text style={styles.rejectText}>거절</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.approveButton}
-              onPress={() => handleApprove(item.number)}
-            >
-              <Text style={styles.approveText}>승인</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <TouchableOpacity
-            style={styles.blockButton}
-            onPress={() => handleBlock(item.number)}
-          >
-            <Text style={styles.blockText}>차단</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
+      {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.headerBack}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="chevron-back" size={24} color="#000" />
-          <Text style={styles.backText}>가입확인</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          위험번호 관리 {contact.name}
-        </Text>
-        <View style={styles.headerRight}/>
+        <Text style={styles.headerTitle}>가입확인</Text>
+        <View style={styles.headerRight} />
       </View>
 
-      {/* 리스트 */}
+      {/* List */}
       <FlatList
         data={items}
         keyExtractor={item => item.number}
-        renderItem={renderItem}
-        contentContainerStyle={
-          items.length === 0 && styles.emptyContainer
-        }
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            저장된 위험번호가 없습니다.
-          </Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>등록된 신청이 없습니다.</Text>
+          </View>
         }
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.avatar} />
+              <Text style={styles.name}>{item.number}</Text>
+              <TouchableOpacity>
+                <Text style={styles.detailText}>
+                  자세히보기 <Icon name="chevron-forward" size={14} />
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.applyRow}>
+              <Text style={styles.applyLabel}>신청일</Text>
+              <Text style={styles.applyDate}>2025-06-11</Text>
+            </View>
+            <View style={styles.actionRow}>
+              {!item.approved ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    onPress={() => handleReject(item.number)}
+                  >
+                    <Text style={styles.rejectText}>거절</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.approveButton}
+                    onPress={() => handleApprove(item.number)}
+                  >
+                    <Text style={styles.approveText}>승인</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.blockButton}
+                  onPress={() => handleBlock(item.number)}
+                >
+                  <Text style={styles.blockText}>차단</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
       />
     </SafeAreaView>
   );
@@ -122,43 +146,82 @@ const EditRiskScreen: React.FC = () => {
 export default EditRiskScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-
+  container: { flex: 1, backgroundColor: '#F2F3F5' },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
+    backgroundColor: '#FFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E0E0E0',
-    justifyContent: 'space-between',
   },
-  headerBack: { flexDirection: 'row', alignItems: 'center' },
-  backText: { marginLeft: 4, fontSize: 14, color: '#000' },
-  headerTitle: { fontSize: 16, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
   headerRight: { width: 24 },
 
-  itemRow: {
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
+    marginBottom: 12,
   },
-  itemText: { fontSize: 14, color: '#333' },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECECEC'
+  },
+  name: {
+    flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '600', color: '#333'
+  },
+  detailText: { fontSize: 12, color: '#999' },
+
+  applyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  applyLabel: { fontSize: 12, color: '#666' },
+  applyDate: { fontSize: 12, marginLeft: 8, color: '#333' },
 
   actionRow: { flexDirection: 'row' },
-  rejectButton: { marginRight: 12 },
-  rejectText: { fontSize: 14, color: '#FF3B30' },
-  approveButton: {},
-  approveText: { fontSize: 14, color: PRIMARY_BLUE },
-  blockButton: {},
-  blockText: { fontSize: 14, color: '#FF3B30' },
+  rejectButton: {
+    flex: 1,
+    marginRight: 8,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#E5F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rejectText: { color: PRIMARY_BLUE, fontSize: 14, fontWeight: '500' },
+  approveButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: PRIMARY_BLUE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  approveText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
+  blockButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  blockText: { color: '#FFF', fontSize: 14, fontWeight: '500' },
 
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 80,
   },
   emptyText: { fontSize: 14, color: '#999' },
 });
