@@ -35,7 +35,7 @@ const SignupScreen: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.header}>회원가입</Text>
-        <Text style={styles.subheader}>계정을 만들고 딩글을 시작해보세요</Text>
+        <Text style={styles.subheader}>계정을 만들고 Fisher를 시작해보세요</Text>
 
         {/* Name */}
         <Text style={styles.label}>Name</Text>
